@@ -1,0 +1,62 @@
+def cifrado_cesar_espanol(texto, clave):
+    """
+    Cifra un texto usando el método de cifrado César con el alfabeto español.
+    """
+    # Definimos el alfabeto en mayúsculas y minúsculas, incluyendo la Ñ y la ñ
+    alfabeto_mayus = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"
+    alfabeto_minus = "abcdefghijklmnñopqrstuvwxyz"
+    
+    resultado = ""
+    for caracter in texto:
+        if caracter.isalpha():
+            if caracter.isupper():
+                # Si es mayúscula, usamos el alfabeto de mayúsculas
+                try:
+                    indice_original = alfabeto_mayus.index(caracter)
+                    nuevo_indice = (indice_original + clave) % 27
+                    nuevo_caracter = alfabeto_mayus[nuevo_indice]
+                except ValueError:
+                    # En caso de que el caracter no esté en el alfabeto definido
+                    nuevo_caracter = caracter
+            else:
+                # Si es minúscula, usamos el alfabeto de minúsculas
+                try:
+                    indice_original = alfabeto_minus.index(caracter)
+                    nuevo_indice = (indice_original + clave) % 27
+                    nuevo_caracter = alfabeto_minus[nuevo_indice]
+                except ValueError:
+                    # En caso de que el caracter no esté en el alfabeto definido
+                    nuevo_caracter = caracter
+        else:
+            # Si el carácter no es una letra, se mantiene sin cambios
+            nuevo_caracter = caracter
+        
+        resultado += nuevo_caracter
+    
+    return resultado
+
+def main():
+    """
+    Función principal para solicitar la clave y las tres palabras.
+    """
+    try:
+        # Solicitar la clave de cifrado
+        clave = int(input("Introduce la clave de cifrado (un número entero): "))
+        
+        # Lista para guardar las palabras introducidas por el usuario
+        palabras_a_cifrar = []
+        for i in range(3):
+            palabra = input(f"Introduce la palabra {i+1} a cifrar: ")
+            palabras_a_cifrar.append(palabra)
+        
+        # Cifrar cada palabra y mostrar el resultado
+        print("\n--- Resultados del Cifrado ---")
+        for palabra in palabras_a_cifrar:
+            palabra_cifrada = cifrado_cesar_espanol(palabra, clave)
+            print(f'Original: "{palabra}" -> Cifrada: "{palabra_cifrada}"')
+
+    except ValueError:
+        print("Error: Por favor, introduce un número válido para la clave.")
+
+if __name__ == "__main__":
+    main()
