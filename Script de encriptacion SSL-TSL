@@ -1,0 +1,104 @@
+# Simulación de encriptación SSL/TLS en Python
+# Inspirado en https://pythonprogramming.net/encryption-and-decryption-in-python-code-example-with-explanation/
+# y adaptado para mostrar cómo SSL/TLS usa RSA + AES
+
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
+import base64, os
+
+
+# ---------------------------
+# Generación de claves RSA (para intercambio seguro)
+# ---------------------------
+def generar_claves_RSA():
+    key_pair = RSA.generate(2048)  # Servidor o receptor
+    private_key = key_pair.export_key()
+    public_key = key_pair.publickey().export_key()
+    return private_key, public_key
+
+
+# ---------------------------
+# Generar clave AES aleatoria
+# ---------------------------
+def generar_clave_AES():
+    AES_key_length = 16  # 128 bits (TLS usa 128 o 256)
+    secret_key = get_random_bytes(AES_key_length)
+    return base64.b64encode(secret_key)
+
+
+# ---------------------------
+# Encriptar mensaje (como haría el cliente en TLS)
+# ---------------------------
+def encriptar_mensaje(mensaje, encoded_aes_key, public_key_rsa):
+    secret_key = base64.b64decode(encoded_aes_key)
+    
+    # AES: cifrado simétrico del mensaje
+    cipher_aes = AES.new(secret_key, AES.MODE_EAX)
+    ciphertext, tag = cipher_aes.encrypt_and_digest(mensaje.encode("utf-8"))
+
+    # RSA: cifrado asimétrico de la clave AES (simula intercambio TLS)
+    rsa_key = RSA.import_key(public_key_rsa)
+    cipher_rsa = PKCS1_OAEP.new(rsa_key)
+    encrypted_aes_key = cipher_rsa.encrypt(secret_key)
+
+    # Retornar todo codificado en base64
+    return {
+        "encrypted_aes_key": base64.b64encode(encrypted_aes_key).decode("utf-8"),
+        "nonce": base64.b64encode(cipher_aes.nonce).decode("utf-8"),
+        "tag": base64.b64encode(tag).decode("utf-8"),
+        "ciphertext": base64.b64encode(ciphertext).decode("utf-8")
+    }
+
+
+# ---------------------------
+# Desencriptar mensaje (como haría el servidor en TLS)
+# ---------------------------
+def desencriptar_mensaje(encrypted_data, private_key_rsa):
+    # Decodificar desde base64
+    encrypted_aes_key = base64.b64decode(encrypted_data["encrypted_aes_key"])
+    nonce = base64.b64decode(encrypted_data["nonce"])
+    tag = base64.b64decode(encrypted_data["tag"])
+    ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+
+    # Desencriptar la clave AES con RSA
+    rsa_key = RSA.import_key(private_key_rsa)
+    cipher_rsa = PKCS1_OAEP.new(rsa_key)
+    secret_key = cipher_rsa.decrypt(encrypted_aes_key)
+
+    # Desencriptar el mensaje con AES
+    cipher_aes = AES.new(secret_key, AES.MODE_EAX, nonce=nonce)
+    decrypted_message = cipher_aes.decrypt_and_verify(ciphertext, tag)
+    return decrypted_message.decode("utf-8")
+
+
+# ---------------------------
+# DEMO (inicio)
+# ---------------------------
+
+mensaje_privado = """
+Mensaje confidencial enviado bajo un canal simulado SSL/TLS.
+Este mensaje fue cifrado con AES y la clave AES protegida con RSA.
+"""
+
+print("=== SIMULACIÓN SSL/TLS ===\n")
+
+# Paso 1: Servidor genera su par de claves RSA
+private_key, public_key = generar_claves_RSA()
+
+# Paso 2: Cliente genera una clave AES y cifra el mensaje
+aes_key = generar_clave_AES()
+datos_cifrados = encriptar_mensaje(mensaje_privado, aes_key, public_key)
+
+# Paso 3: Servidor recibe y desencripta
+mensaje_desencriptado = desencriptar_mensaje(datos_cifrados, private_key)
+
+# Mostrar resultados
+print("Clave pública RSA (servidor):\n", public_key.decode()[:100], "...\n")
+print("Clave AES generada (base64):", aes_key.decode())
+print("\n--- Datos cifrados (como viajan por la red) ---")
+for k, v in datos_cifrados.items():
+    print(f"{k}: {v[:60]}...")
+
+print("\n--- Mensaje descifrado ---")
+print(mensaje_desencriptado)
